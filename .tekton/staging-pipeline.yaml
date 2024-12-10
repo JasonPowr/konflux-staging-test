@@ -1,0 +1,68 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: rhtas-staging
+  namespace: japower-tenant
+spec:
+  description: |
+    A test pipeline that applies a ReleasePlan resource using the oc CLI.
+  tasks:
+    - name: apply-release-plan
+      taskSpec:
+        steps:
+          - name: apply-release-plan
+            image: quay.io/openshift/origin-cli:latest
+            workingDir: /workspace
+            script: |
+              cat <<EOF > staging-release-plan.yaml
+              apiVersion: appstudio.redhat.com/v1alpha1
+              kind: ReleasePlan
+              metadata:
+                labels:
+                  release.appstudio.openshift.io/auto-release: "false"
+                  release.appstudio.openshift.io/releasePlanAdmission: test
+                name: test
+                namespace: japower-tenant
+              spec:
+                application: test
+                target: test
+              EOF
+
+              oc apply -f staging-release-plan.yaml
+    - name: apply-release
+      taskSpec:
+        steps:
+          - name: apply-release
+            image: quay.io/openshift/origin-cli:latest
+            workingDir: /workspace
+            script: |
+              cat <<EOF > staging-release-resource.yaml
+              apiVersion: appstudio.redhat.com/v1alpha1
+              kind: Release
+              metadata:
+                name: test
+                namespace: japower-tenant
+              spec:
+                releasePlan: test
+                snapshot: test-snapshot
+              EOF
+
+              oc apply -f staging-release-resource.yaml
+    - name: monitor-release
+      taskSpec:
+        steps:
+          - name: check-release-status
+            image: quay.io/openshift/origin-cli:latest
+            workingDir: /workspace
+            script: |
+              STATUS=$(oc get release test -n japower-tenant -o jsonpath='{.status.conditions[?(@.type=="Released")].status}')
+              if [ "$STATUS" = "False" ]; then
+                echo "Release has already failed. Exiting."
+                exit 1
+              fi
+
+              # Wait for Released=True
+              oc wait --for=condition=Released release/test -n japower-tenant --timeout=1h
+
+              # Wait for Validated=True
+              oc wait --for=condition=Validated release/test -n japower-tenant --timeout=1h
