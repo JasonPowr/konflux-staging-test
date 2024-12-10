@@ -1,0 +1,18 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: apply-manifests
+spec:
+  workspaces:
+    - name: output
+  params:
+    - description: Manifest to apply
+      name: manifest
+      type: string
+  steps:
+    - name: apply-manifest
+      image: quay.io/openshift/origin-cli:latest
+      workingDir: /workspace/output/source
+      script: |
+        echo "Applying: $(params.manifest)"
+        oc apply -f "$(params.manifest)"

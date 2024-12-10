@@ -1,0 +1,8 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Release
+metadata:
+  name: test-7
+  namespace: japower-tenant
+spec:
+  releasePlan: test-7
+  snapshot: test-7

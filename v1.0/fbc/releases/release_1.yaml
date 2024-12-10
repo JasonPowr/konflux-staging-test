@@ -1,0 +1,8 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Release
+metadata:
+  name: fbc-release-1
+  namespace: japower-tenant
+spec:
+  releasePlan: test-1
+  snapshot: test-1

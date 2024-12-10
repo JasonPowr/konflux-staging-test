@@ -1,0 +1,241 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: rhtas-release
+  namespace: japower-tenant
+spec:
+  description: |
+    A pipeline used to process and apply release and releasePlan objects for RHTAS.
+  params:
+    - name: git-url
+      type: string
+      description: Source Repository URL
+    - name: revision
+      type: string
+      default: ""
+      description: Revision of the Source Repository
+    - name: component-release-plan-dir
+      type: string
+      default: ""
+      description: |
+        Directory where the Component Release Plan manifests are stored should vary based on the pipeline type. 
+        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
+        pipeline, it should point to the production release plans.
+    - name: component-release-dir
+      type: string
+      default: ""
+      description: |
+        Directory where the Component Release  manifests are stored should vary based on the pipeline type. 
+        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
+        pipeline, it should point to the production release plans.
+    - name: fbc-release-plan-dir
+      type: string
+      default: ""
+      description: |
+        Directory where the FBC Release Plan manifests are stored should vary based on the pipeline type. 
+        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
+        pipeline, it should point to the production release plans.
+    - name: fbc-release-dir
+      type: string
+      default: ""
+      description: |
+        Directory where the FBC Release manifests are stored should vary based on the pipeline type. 
+        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
+        pipeline, it should point to the production release plans.
+  tasks:
+    - name: clone-repository
+      params:
+      - name: url
+        value: $(params.git-url)
+      - name: revision
+        value: $(params.revision)
+      taskRef:
+        params:
+        - name: name
+          value: git-clone
+        - name: bundle
+          value: quay.io/konflux-ci/tekton-catalog/task-git-clone:0.1@sha256:d091a9e19567a4cbdc5acd57903c71ba71dc51d749a4ba7477e689608851e981
+        - name: kind
+          value: task
+        resolver: bundles
+      workspaces:
+      - name: output
+        workspace: workspace
+      - name: basic-auth
+        workspace: git-auth
+    - name: process-release-plans
+      runAfter:
+        - clone-repository
+      params:
+        - name: component-release-plan-dir
+          value: $(params.component-release-plan-dir)
+        - name: fbc-release-plan-dir
+          value: $(params.fbc-release-plan-dir)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/process-release-plans.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: process-releases
+      runAfter:
+        - clone-repository
+      params:
+        - name: component-release-dir
+          value: $(params.component-release-dir)
+        - name: fbc-release-dir
+          value: $(params.fbc-release-dir)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/process-releases.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: apply-component-release-plans
+      runAfter:
+        - process-release-plans
+        - process-releases
+      matrix:
+        params:
+          - name: manifest
+            value: "$(tasks.process-release-plans.results.component-release-plans)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/oc-apply.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: apply-component-release
+      runAfter:
+        - apply-component-release-plans
+      matrix:
+        params:
+          - name: manifest
+            value: "$(tasks.process-releases.results.component-releases)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/oc-apply.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: monitor-component-release
+      runAfter:
+        - apply-component-release
+      matrix:
+        params:
+          - name: release
+            value: "$(tasks.process-releases.results.component-releases)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/monitor-release.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: apply-fbc-release-plans
+      runAfter:
+        - monitor-component-release
+      matrix:
+        params:
+          - name: manifest
+            value: "$(tasks.process-release-plans.results.fbc-release-plans)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/oc-apply.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+      when:
+      - input: "$(params.fbc-release-plan-dir)"
+        operator: notin
+        values: 
+        - ""
+    - name: apply-fbc-release
+      runAfter:
+        - apply-fbc-release-plans
+      matrix:
+        params:
+          - name: manifest
+            value: "$(tasks.process-releases.results.fbc-releases)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/oc-apply.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+      when:
+      - input: "$(params.fbc-release-dir)"
+        operator: notin
+        values: 
+        - ""
+    - name: monitor-fbc-release
+      runAfter:
+        - apply-fbc-release
+      matrix:
+        params:
+          - name: release
+            value: "$(tasks.process-releases.results.fbc-releases)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/monitor-release.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+      when:
+      - input: "$(params.fbc-release-dir)"
+        operator: notin
+        values: 
+        - ""
+  workspaces:
+  - name: workspace
+  - name: git-auth
+    optional: true
+  - name: netrc
+    optional: true
