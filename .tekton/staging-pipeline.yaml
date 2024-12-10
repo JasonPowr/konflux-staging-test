@@ -1,0 +1,136 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: rhtas-staging
+  namespace: japower-tenant
+spec:
+  description: |
+    A pipeline used to process and apply release and releasePlan objects for RHTAS.
+  params:
+    - description: Source Repository URL
+      name: git-url
+      type: string
+    - default: ""
+      description: Revision of the Source Repository
+      name: revision
+      type: string
+    - default: ""
+      description: Directory the Release Plan manifests are stored
+      name: releasePlanDir
+      type: string
+  tasks:
+    - name: clone-repository
+      params:
+      - name: url
+        value: $(params.git-url)
+      - name: revision
+        value: $(params.revision)
+      taskRef:
+        params:
+        - name: name
+          value: git-clone
+        - name: bundle
+          value: quay.io/konflux-ci/tekton-catalog/task-git-clone:0.1@sha256:d091a9e19567a4cbdc5acd57903c71ba71dc51d749a4ba7477e689608851e981
+        - name: kind
+          value: task
+        resolver: bundles
+      workspaces:
+      - name: output
+        workspace: workspace
+      - name: basic-auth
+        workspace: git-auth
+    - name: process-release-plans
+      params:
+        - name: releasePlanDir
+          value: $(params.releasePlanDir)
+      runAfter:
+        - clone-repository
+      taskSpec:
+        params:
+          - name: releasePlanDir
+            type: string
+        results:
+          - name: releasePlans
+            type: array
+            description: List of release plan file names
+        steps:
+          - name: process-release-plans
+            image: quay.io/konflux-ci/appstudio-utils:48c311af02858e2422d6229600e9959e496ddef1@sha256:91ddd999271f65d8ec8487b10f3dd378f81aa894e11b9af4d10639fd52bba7e8
+            workingDir: /workspace/output/source/$(params.releasePlanDir)
+            script: |
+              files=$(ls *.yaml | jq -R -s 'split("\n")[:-1]')
+              echo "$files" > /tekton/results/releasePlans
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: apply-release-plan
+      params:
+        - name: releasePlanDir
+          value: $(params.releasePlanDir)
+      runAfter:
+        - process-release-plans
+      matrix:
+        params:
+          - name: releasePlan
+            value: "$(tasks.process-release-plans.results.releasePlans)"
+      taskSpec:
+        params:
+          - name: releasePlan
+            type: string
+        steps:
+          - name: apply-release-plan
+            image: quay.io/openshift/origin-cli:latest
+            workingDir: /workspace/output/source/$(params.releasePlanDir)
+            script: |
+              echo "Applying release plan: $(params.releasePlan)"
+              oc apply -f "$(params.releasePlan)"
+      workspaces:
+        - name: output
+          workspace: workspace
+    # - name: apply-release
+    #   runAfter:
+    #     - apply-release-plan
+    #   taskSpec:
+    #     steps:
+    #       - name: apply-release
+    #         image: quay.io/openshift/origin-cli:latest
+    #         workingDir: /workspace/output/source
+    #         script: |
+    #           cat <<EOF > staging-release-resource.yaml
+    #           apiVersion: appstudio.redhat.com/v1alpha1
+    #           kind: Release
+    #           metadata:
+    #             name: test
+    #             namespace: japower-tenant
+    #           spec:
+    #             releasePlan: test
+    #             snapshot: test-snapshot
+    #           EOF
+
+    #           oc apply -f staging-release-resource.yaml
+    # - name: monitor-release
+    #   runAfter:
+    #     - apply-release
+    #   taskSpec:
+    #     steps:
+    #       - name: check-release-status
+    #         image: quay.io/openshift/origin-cli:latest
+    #         workingDir: /workspace/output/source
+    #         script: |
+    #           STATUS=$(oc get release test -n japower-tenant -o jsonpath='{.status.conditions[?(@.type=="Released")].status}')
+    #           if [ "$STATUS" = "False" ]; then
+    #             echo "Release has failed. Exiting."
+    #             exit 1
+    #           fi
+
+    #           # Wait for Released=True
+    #           oc wait --for=condition=Released release/test -n japower-tenant --timeout=1h
+
+    #           # Wait for Validated=True
+    #           oc wait --for=condition=Validated release/test -n japower-tenant --timeout=1h
+  workspaces:
+  - name: workspace
+  - name: git-auth
+    optional: true
+  - name: netrc
+    optional: true
