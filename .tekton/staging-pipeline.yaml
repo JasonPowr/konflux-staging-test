@@ -14,6 +14,10 @@ spec:
       type: string
       default: ""
       description: Revision of the Source Repository
+    - name: run-component-release
+      type: string
+      default: false
+      description: "Set to 'true' if component release tasks should run."
     - name: component-release-plan-dir
       type: string
       default: ""
@@ -28,6 +32,10 @@ spec:
         Directory where the Component Release  manifests are stored should vary based on the pipeline type. 
         If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
         pipeline, it should point to the production release plans.
+    - name: run-fbc-release
+      type: string
+      default: false
+      description: "Set to 'true' if FBC release tasks should run."
     - name: fbc-release-plan-dir
       type: string
       default: ""
@@ -123,6 +131,11 @@ spec:
       workspaces:
         - name: output
           workspace: workspace
+      when:
+        - input: "$(params.run-component-release)"
+          operator: in
+          values:
+            - true
     - name: apply-component-release
       runAfter:
         - apply-component-release-plans
@@ -142,6 +155,11 @@ spec:
       workspaces:
         - name: output
           workspace: workspace
+      when:
+        - input: "$(params.run-component-release)"
+          operator: in
+          values:
+            - "true"
     - name: monitor-component-release
       runAfter:
         - apply-component-release
@@ -161,6 +179,11 @@ spec:
       workspaces:
         - name: output
           workspace: workspace
+      when:
+        - input: "$(params.run-component-release)"
+          operator: in
+          values:
+            - true
     - name: apply-fbc-release-plans
       runAfter:
         - monitor-component-release
@@ -181,10 +204,10 @@ spec:
         - name: output
           workspace: workspace
       when:
-      - input: "$(params.fbc-release-plan-dir)"
-        operator: notin
-        values: 
-        - ""
+        - input: "$(params.run-fbc-release)"
+          operator: in
+          values:
+            - true
     - name: apply-fbc-release
       runAfter:
         - apply-fbc-release-plans
@@ -205,10 +228,10 @@ spec:
         - name: output
           workspace: workspace
       when:
-      - input: "$(params.fbc-release-dir)"
-        operator: notin
-        values: 
-        - ""
+        - input: "$(params.run-fbc-release)"
+          operator: in
+          values:
+            - true
     - name: monitor-fbc-release
       runAfter:
         - apply-fbc-release
@@ -229,13 +252,11 @@ spec:
         - name: output
           workspace: workspace
       when:
-      - input: "$(params.fbc-release-dir)"
-        operator: notin
-        values: 
-        - ""
+        - input: "$(params.run-fbc-release)"
+          operator: in
+          values:
+            - true
   workspaces:
   - name: workspace
   - name: git-auth
-    optional: true
-  - name: netrc
     optional: true

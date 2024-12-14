@@ -14,15 +14,17 @@ spec:
       image: quay.io/openshift/origin-cli:latest
       workingDir: /workspace/output/source
       script: |
-        # Check the release status
         STATUS=$(oc get -f "$(params.release)" -o jsonpath='{.status.conditions[?(@.type=="Released")].status}')
         if [ "$STATUS" = "False" ]; then
           echo "Release has failed. Exiting."
-          exit 0 #tmp as I want it to pass needs to be removed
+          oc get -f "$(params.release)" -o yaml
+          exit 1
         fi
 
-        # Wait for Released=True
-        oc wait --for=condition=Released -f "$(params.release)" --timeout=1h
+        echo "Waiting for Released=True..."
+        oc wait --for=condition=Released -f "$(params.release)" --timeout=$(params.wait-timeout)
 
-        # Wait for Validated=True
-        oc wait --for=condition=Validated -f "$(params.release)" --timeout=1h
+        echo "Waiting for Validated=True..."
+        oc wait --for=condition=Validated -f "$(params.release)" --timeout=$(params.wait-timeout)
+
+        echo "Release is both Released and Validated."
