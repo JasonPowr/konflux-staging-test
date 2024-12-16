@@ -21,31 +21,17 @@ spec:
     value: '{{source_url}}'
   - name: revision
     value: '{{revision}}'
-  - name: component-release-plan-dir
-    value: 'v1.0/component/releasePlans'
-  - name: component-release-dir
-    value: 'v1.0/component/releases'
-  - name: fbc-release-plan-dir
-    value: 'v1.0/fbc/releasePlans'
-  - name: fbc-release-dir
-    value: 'v1.0/fbc/releases'
+  - name: releases
+    value:
+      - '{"type": "component", "run": "true", "release-plan-dir": "plans/component", "release-dir": "releases/component"}'
+      - '{"type": "fbc", "run": "false", "release-plan-dir": "plans/fbc", "release-dir": "releases/fbc"}'
   pipelineRef:
     name: rhtas-release
+  taskRunTemplate:
+    serviceAccountName: rhtas-staging-sa
   taskRunSpecs:
-    - pipelineTaskName: apply-component-release-plans
-      serviceAccountName: rhtas-staging-sa
-    - pipelineTaskName: apply-component-release
-      serviceAccountName: rhtas-staging-sa
-    - pipelineTaskName: monitor-component-release
-      serviceAccountName: rhtas-staging-sa
-    - pipelineTaskName: apply-fbc-release-plans
-      serviceAccountName: rhtas-staging-sa
-    - pipelineTaskName: apply-fbc-release
-      serviceAccountName: rhtas-staging-sa
-    - pipelineTaskName: monitor-fbc-release
-      serviceAccountName: rhtas-staging-sa
-    - pipelineTaskName: process-releases
-      serviceAccountName: rhtas-staging-sa
+    - pipelineTaskName: clone-repository
+      serviceAccountName: appstudio-pipeline
   workspaces:
   - name: workspace
     volumeClaimTemplate:

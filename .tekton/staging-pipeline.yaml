@@ -14,42 +14,41 @@ spec:
       type: string
       default: ""
       description: Revision of the Source Repository
-    - name: run-component-release
+    - name: timeout
       type: string
-      default: false
-      description: "Set to 'true' if component release tasks should run."
-    - name: component-release-plan-dir
-      type: string
-      default: ""
-      description: |
-        Directory where the Component Release Plan manifests are stored should vary based on the pipeline type. 
-        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
-        pipeline, it should point to the production release plans.
-    - name: component-release-dir
-      type: string
-      default: ""
-      description: |
-        Directory where the Component Release  manifests are stored should vary based on the pipeline type. 
-        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
-        pipeline, it should point to the production release plans.
-    - name: run-fbc-release
-      type: string
-      default: false
-      description: "Set to 'true' if FBC release tasks should run."
-    - name: fbc-release-plan-dir
-      type: string
-      default: ""
-      description: |
-        Directory where the FBC Release Plan manifests are stored should vary based on the pipeline type. 
-        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
-        pipeline, it should point to the production release plans.
-    - name: fbc-release-dir
-      type: string
-      default: ""
-      description: |
-        Directory where the FBC Release manifests are stored should vary based on the pipeline type. 
-        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
-        pipeline, it should point to the production release plans.
+      default: "1h"
+      description: Timeout for waiting conditions
+    - name: releases
+      type: array
+      description: List of release configurations
+      items:
+        type: object
+        properties:
+          type:
+            type: string
+            enum: ["component", "fbc"]
+            description: Type of release
+          run:
+            type: string
+            enum: ["true", "false"]
+            default: "false"
+            description: Set to "true" if this release type should run.
+          release-plan-dir:
+            type: string
+            default: ""
+            description: Directory where the Release Plan manifests are stored.
+          release-plan:
+            type: string
+            default: ""
+            description: Release Plan to apply
+          release-dir:
+            type: string
+            default: ""
+            description: Directory where the Release manifests are stored.
+          release:
+            type: string
+            default: ""
+            description: Release to apply
   tasks:
     - name: clone-repository
       params:
@@ -75,10 +74,8 @@ spec:
       runAfter:
         - clone-repository
       params:
-        - name: component-release-plan-dir
-          value: $(params.component-release-plan-dir)
-        - name: fbc-release-plan-dir
-          value: $(params.fbc-release-plan-dir)
+        - name: releases
+          value: $(params.releases[*])
       taskRef:
         resolver: git
         params:
@@ -91,171 +88,177 @@ spec:
       workspaces:
         - name: output
           workspace: workspace
-    - name: process-releases
-      runAfter:
-        - clone-repository
-      params:
-        - name: component-release-dir
-          value: $(params.component-release-dir)
-        - name: fbc-release-dir
-          value: $(params.fbc-release-dir)
-      taskRef:
-        resolver: git
-        params:
-          - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
-          - name: revision
-            value: main
-          - name: pathInRepo
-            value: tasks/process-releases.yaml
-      workspaces:
-        - name: output
-          workspace: workspace
-    - name: apply-component-release-plans
-      runAfter:
-        - process-release-plans
-        - process-releases
-      matrix:
-        params:
-          - name: manifest
-            value: "$(tasks.process-release-plans.results.component-release-plans)"
-      taskRef:
-        resolver: git
-        params:
-          - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
-          - name: revision
-            value: main
-          - name: pathInRepo
-            value: tasks/oc-apply.yaml
-      workspaces:
-        - name: output
-          workspace: workspace
-      when:
-        - input: "$(params.run-component-release)"
-          operator: in
-          values:
-            - true
-    - name: apply-component-release
-      runAfter:
-        - apply-component-release-plans
-      matrix:
-        params:
-          - name: manifest
-            value: "$(tasks.process-releases.results.component-releases)"
-      taskRef:
-        resolver: git
-        params:
-          - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
-          - name: revision
-            value: main
-          - name: pathInRepo
-            value: tasks/oc-apply.yaml
-      workspaces:
-        - name: output
-          workspace: workspace
-      when:
-        - input: "$(params.run-component-release)"
-          operator: in
-          values:
-            - "true"
-    - name: monitor-component-release
-      runAfter:
-        - apply-component-release
-      matrix:
-        params:
-          - name: release
-            value: "$(tasks.process-releases.results.component-releases)"
-      taskRef:
-        resolver: git
-        params:
-          - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
-          - name: revision
-            value: main
-          - name: pathInRepo
-            value: tasks/monitor-release.yaml
-      workspaces:
-        - name: output
-          workspace: workspace
-      when:
-        - input: "$(params.run-component-release)"
-          operator: in
-          values:
-            - true
-    - name: apply-fbc-release-plans
-      runAfter:
-        - monitor-component-release
-      matrix:
-        params:
-          - name: manifest
-            value: "$(tasks.process-release-plans.results.fbc-release-plans)"
-      taskRef:
-        resolver: git
-        params:
-          - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
-          - name: revision
-            value: main
-          - name: pathInRepo
-            value: tasks/oc-apply.yaml
-      workspaces:
-        - name: output
-          workspace: workspace
-      when:
-        - input: "$(params.run-fbc-release)"
-          operator: in
-          values:
-            - true
-    - name: apply-fbc-release
-      runAfter:
-        - apply-fbc-release-plans
-      matrix:
-        params:
-          - name: manifest
-            value: "$(tasks.process-releases.results.fbc-releases)"
-      taskRef:
-        resolver: git
-        params:
-          - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
-          - name: revision
-            value: main
-          - name: pathInRepo
-            value: tasks/oc-apply.yaml
-      workspaces:
-        - name: output
-          workspace: workspace
-      when:
-        - input: "$(params.run-fbc-release)"
-          operator: in
-          values:
-            - true
-    - name: monitor-fbc-release
-      runAfter:
-        - apply-fbc-release
-      matrix:
-        params:
-          - name: release
-            value: "$(tasks.process-releases.results.fbc-releases)"
-      taskRef:
-        resolver: git
-        params:
-          - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
-          - name: revision
-            value: main
-          - name: pathInRepo
-            value: tasks/monitor-release.yaml
-      workspaces:
-        - name: output
-          workspace: workspace
-      when:
-        - input: "$(params.run-fbc-release)"
-          operator: in
-          values:
-            - true
+    # - name: process-releases
+    #   runAfter:
+    #     - clone-repository
+    #   params:
+    #     - name: component-release-dir
+    #       value: $(params.component-release-dir)
+    #     - name: fbc-release-dir
+    #       value: $(params.fbc-release-dir)
+    #   taskRef:
+    #     resolver: git
+    #     params:
+    #       - name: url
+    #         value: https://github.com/JasonPowr/konflux-staging-test
+    #       - name: revision
+    #         value: main
+    #       - name: pathInRepo
+    #         value: tasks/process-releases.yaml
+    #   workspaces:
+    #     - name: output
+    #       workspace: workspace
+    # - name: apply-component-release-plans
+    #   runAfter:
+    #     - process-release-plans
+    #     - process-releases
+    #   matrix:
+    #     params:
+    #       - name: manifest
+    #         value: "$(tasks.process-release-plans.results.component-release-plans)"
+    #   taskRef:
+    #     resolver: git
+    #     params:
+    #       - name: url
+    #         value: https://github.com/JasonPowr/konflux-staging-test
+    #       - name: revision
+    #         value: main
+    #       - name: pathInRepo
+    #         value: tasks/oc-apply.yaml
+    #   workspaces:
+    #     - name: output
+    #       workspace: workspace
+    #   when:
+    #     - input: "$(params.run-component-release)"
+    #       operator: in
+    #       values:
+    #         - "true"
+    # - name: apply-component-release
+    #   runAfter:
+    #     - apply-component-release-plans
+    #   matrix:
+    #     params:
+    #       - name: manifest
+    #         value: "$(tasks.process-releases.results.component-releases)"
+    #   taskRef:
+    #     resolver: git
+    #     params:
+    #       - name: url
+    #         value: https://github.com/JasonPowr/konflux-staging-test
+    #       - name: revision
+    #         value: main
+    #       - name: pathInRepo
+    #         value: tasks/oc-apply.yaml
+    #   workspaces:
+    #     - name: output
+    #       workspace: workspace
+    #   when:
+    #     - input: "$(params.run-component-release)"
+    #       operator: in
+    #       values:
+    #         - "true"
+    # - name: monitor-component-release
+    #   runAfter:
+    #     - apply-component-release
+    #   matrix:
+    #     params:
+    #       - name: release
+    #         value: "$(tasks.process-releases.results.component-releases)"
+    #   params:
+    #     - name: timeout
+    #       value: "$(params.timeout)"
+    #   taskRef:
+    #     resolver: git
+    #     params:
+    #       - name: url
+    #         value: https://github.com/JasonPowr/konflux-staging-test
+    #       - name: revision
+    #         value: main
+    #       - name: pathInRepo
+    #         value: tasks/monitor-release.yaml
+    #   workspaces:
+    #     - name: output
+    #       workspace: workspace
+    #   when:
+    #     - input: "$(params.run-component-release)"
+    #       operator: in
+    #       values:
+    #         - "true"
+    # - name: apply-fbc-release-plans
+    #   runAfter:
+    #     - monitor-component-release
+    #   matrix:
+    #     params:
+    #       - name: manifest
+    #         value: "$(tasks.process-release-plans.results.fbc-release-plans)"
+    #   taskRef:
+    #     resolver: git
+    #     params:
+    #       - name: url
+    #         value: https://github.com/JasonPowr/konflux-staging-test
+    #       - name: revision
+    #         value: main
+    #       - name: pathInRepo
+    #         value: tasks/oc-apply.yaml
+    #   workspaces:
+    #     - name: output
+    #       workspace: workspace
+    #   when:
+    #     - input: "$(params.run-fbc-release)"
+    #       operator: in
+    #       values:
+    #         - "true"
+    # - name: apply-fbc-release
+    #   runAfter:
+    #     - apply-fbc-release-plans
+    #   matrix:
+    #     params:
+    #       - name: manifest
+    #         value: "$(tasks.process-releases.results.fbc-releases)"
+    #   taskRef:
+    #     resolver: git
+    #     params:
+    #       - name: url
+    #         value: https://github.com/JasonPowr/konflux-staging-test
+    #       - name: revision
+    #         value: main
+    #       - name: pathInRepo
+    #         value: tasks/oc-apply.yaml
+    #   workspaces:
+    #     - name: output
+    #       workspace: workspace
+    #   when:
+    #     - input: "$(params.run-fbc-release)"
+    #       operator: in
+    #       values:
+    #         - "true"
+    # - name: monitor-fbc-release
+    #   runAfter:
+    #     - apply-fbc-release
+    #   matrix:
+    #     params:
+    #       - name: release
+    #         value: "$(tasks.process-releases.results.fbc-releases)"
+    #   params:
+    #     - name: timeout
+    #       value: "$(params.timeout)"
+    #   taskRef:
+    #     resolver: git
+    #     params:
+    #       - name: url
+    #         value: https://github.com/JasonPowr/konflux-staging-test
+    #       - name: revision
+    #         value: main
+    #       - name: pathInRepo
+    #         value: tasks/monitor-release.yaml
+    #   workspaces:
+    #     - name: output
+    #       workspace: workspace
+    #   when:
+    #     - input: "$(params.run-fbc-release)"
+    #       operator: in
+    #       values:
+    #         - "true"
   workspaces:
   - name: workspace
   - name: git-auth
