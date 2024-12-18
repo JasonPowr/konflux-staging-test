@@ -21,18 +21,12 @@ spec:
     value: '{{source_url}}'
   - name: revision
     value: '{{revision}}'
-  - name: component-release-plan-dir
-    value: 'v1.0/component/releasePlans'
-  - name: component-release-dir
-    value: 'v1.0/component/releases'
-  - name: fbc-release-plan-dir
-    value: 'v1.0/fbc/releasePlans'
-  - name: fbc-release-dir
-    value: 'v1.0/fbc/releases'
-  - name: run-component-release
-    value: 'false'
-  - name: run-fbc-release
-    value: 'true'
+  - name: releases
+    value: |
+      - type: component
+        run: true
+        releasePlanDir: v1.0/component/releasePlans
+        releaseDir: v1.0/component/releases
   pipelineRef:
     name: rhtas-release
   taskRunTemplate:
