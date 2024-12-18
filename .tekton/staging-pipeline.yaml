@@ -14,46 +14,9 @@ spec:
       type: string
       default: ""
       description: Revision of the Source Repository
-    - name: timeout
-      type: string
-      default: "false"
-      description: "Set to 'true' if component release tasks should run."
-    - name: component-release-plan-dir
-      type: string
+    - name: releases
       default: ""
-      description: |
-        Directory where the Component Release Plan manifests are stored should vary based on the pipeline type. 
-        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
-        pipeline, it should point to the production release plans.
-    - name: component-release-dir
-      type: string
-      default: ""
-      description: |
-        Directory where the Component Release  manifests are stored should vary based on the pipeline type. 
-        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
-        pipeline, it should point to the production release plans.
-    - name: run-fbc-release
-      type: string
-      default: "false"
-      description: "Set to 'true' if FBC release tasks should run."
-    - name: fbc-release-plan-dir
-      type: string
-      default: ""
-      description: |
-        Directory where the FBC Release Plan manifests are stored should vary based on the pipeline type. 
-        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
-        pipeline, it should point to the production release plans.
-    - name: fbc-release-dir
-      type: string
-      default: ""
-      description: |
-        Directory where the FBC Release manifests are stored should vary based on the pipeline type. 
-        If referenced in an on-pull-request pipeline, it should point to the staging release plans. If referenced in an on-push 
-        pipeline, it should point to the production release plans.
-    - name: timeout
-      type: string
-      description: Timeout for waiting conditions
-      default: "1h"
+      description: "An array of yaml defined release configurations"
   tasks:
     - name: clone-repository
       params:
@@ -75,12 +38,42 @@ spec:
         workspace: workspace
       - name: basic-auth
         workspace: git-auth
-    - name: process-release-plans
+      when:
+        - input: "$(params.releases)"
+          operator: notin
+          values:
+            - ""
+    - name: parse-release-config
       runAfter:
         - clone-repository
       params:
         - name: releases
-          value: $(params.releases[*])
+          value: $(params.releases)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/parse-release-config.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+      when:
+        - input: "$(params.releases)"
+          operator: notin
+          values:
+            - ""
+    - name: process-release-plans
+      runAfter:
+        - parse-release-config
+      params:
+        - name: component-release-plan-dir
+          value: "$(tasks.parse-release-config.results.componentReleasePlanDirectory)"
+        - name: fbc-release-plan-dir
+          value: "$(tasks.parse-release-config.results.fbcReleasePlanDirectory)"
       taskRef:
         resolver: git
         params:
@@ -93,14 +86,19 @@ spec:
       workspaces:
         - name: output
           workspace: workspace
+      when:
+        - input: "$(params.releases)"
+          operator: notin
+          values:
+            - ""
     - name: process-releases
       runAfter:
         - clone-repository
       params:
         - name: component-release-dir
-          value: $(params.component-release-dir)
+          value: "$(tasks.parse-release-config.results.componentReleaseDirectory)"
         - name: fbc-release-dir
-          value: $(params.fbc-release-dir)
+          value: "$(tasks.parse-release-config.results.fbcReleaseDirectory)"
       taskRef:
         resolver: git
         params:
@@ -113,6 +111,11 @@ spec:
       workspaces:
         - name: output
           workspace: workspace
+      when:
+        - input: "$(params.releases)"
+          operator: notin
+          values:
+            - ""
     - name: apply-component-release-plans
       runAfter:
         - process-release-plans
@@ -134,7 +137,7 @@ spec:
         - name: output
           workspace: workspace
       when:
-        - input: "$(params.run-component-release)"
+        - input: "$(tasks.parse-release-config.results.runComponentRelease)"
           operator: in
           values:
             - "true"
@@ -158,7 +161,7 @@ spec:
         - name: output
           workspace: workspace
       when:
-        - input: "$(params.run-component-release)"
+        - input: "$(tasks.parse-release-config.results.runComponentRelease)"
           operator: in
           values:
             - "true"
@@ -169,9 +172,6 @@ spec:
         params:
           - name: release
             value: "$(tasks.process-releases.results.component-releases)"
-      params:
-        - name: timeout
-          value: "$(params.timeout)"
       taskRef:
         resolver: git
         params:
@@ -181,11 +181,12 @@ spec:
             value: main
           - name: pathInRepo
             value: tasks/monitor-release.yaml
+      timeout: "1h"
       workspaces:
         - name: output
           workspace: workspace
       when:
-        - input: "$(params.run-component-release)"
+        - input: "$(tasks.parse-release-config.results.runComponentRelease)"
           operator: in
           values:
             - "true"
@@ -209,7 +210,7 @@ spec:
         - name: output
           workspace: workspace
       when:
-        - input: "$(params.run-fbc-release)"
+        - input: "$(tasks.parse-release-config.results.runFbcRelease)"
           operator: in
           values:
             - "true"
@@ -233,7 +234,7 @@ spec:
         - name: output
           workspace: workspace
       when:
-        - input: "$(params.run-fbc-release)"
+        - input: "$(tasks.parse-release-config.results.runFbcRelease)"
           operator: in
           values:
             - "true"
@@ -244,9 +245,6 @@ spec:
         params:
           - name: release
             value: "$(tasks.process-releases.results.fbc-releases)"
-      params:
-        - name: timeout
-          value: "$(params.timeout)"
       taskRef:
         resolver: git
         params:
@@ -256,11 +254,12 @@ spec:
             value: main
           - name: pathInRepo
             value: tasks/monitor-release.yaml
+      timeout: "1h"
       workspaces:
         - name: output
           workspace: workspace
       when:
-        - input: "$(params.run-fbc-release)"
+        - input: "$(tasks.parse-release-config.results.runFbcRelease)"
           operator: in
           values:
             - "true"

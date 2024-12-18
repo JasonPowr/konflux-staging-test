@@ -14,25 +14,29 @@ spec:
     - name: release
       type: string
       description: Release to monitor
-    - name: timeout
-      type: string
-      description: Timeout for waiting conditions
-      default: "1h"
   steps:
     - name: monitor-release
       workingDir: /workspace/output/source
       script: |
-        STATUS=$(oc get -f "$(params.release)" -o jsonpath='{.status.conditions[?(@.type=="Released")].status}')
-        if [ "$STATUS" = "False" ]; then
-          echo "Release has failed. Exiting."
-          oc get -f "$(params.release)" -o yaml
-          exit 0 # temp to get it to pass
-        fi
+        #!/usr/bin/env bash
+        set -euo pipefail
 
-        echo "Waiting for Released=True..."
-        oc wait --for=condition=Released -f "$(params.release)" --timeout=$(params.timeout)
+        RELEASE_FILE="$(params.release)"
 
-        echo "Waiting for Validated=True..."
-        oc wait --for=condition=Validated -f "$(params.release)" --timeout=$(params.timeout)
+        while true; do
+            RELEASED_REASON=$(oc get -f "$RELEASE_FILE" -o jsonpath='{.status.conditions[?(@.type=="Released")].reason}' || true)
+            VALIDATED_REASON=$(oc get -f "$RELEASE_FILE" -o jsonpath='{.status.conditions[?(@.type=="Validated")].reason}' || true)
 
-        echo "Release is both Released and Validated."
+            if [[ "$RELEASED_REASON" == "Failed" || "$VALIDATED_REASON" == "Failed" ]]; then
+                echo "Release failed."
+                oc get -f "$RELEASE_FILE" -o yaml
+                exit 1
+            fi
+
+            if [[ "$RELEASED_REASON" == "Succeeded" && "$VALIDATED_REASON" == "Succeeded" ]]; then
+                echo "Release succeeded."
+                exit 0
+            fi
+
+            sleep 60
+        done
