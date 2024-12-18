@@ -2,7 +2,6 @@ apiVersion: tekton.dev/v1
 kind: Task
 metadata:
   name: process-release-plans
-  namespace: japower-tenant
 spec:
   workspaces:
     - name: output
@@ -12,14 +11,19 @@ spec:
         value: /workspace
     image: quay.io/konflux-ci/appstudio-utils:48c311af02858e2422d6229600e9959e496ddef1@sha256:91ddd999271f65d8ec8487b10f3dd378f81aa894e11b9af4d10639fd52bba7e8
   params:
-    - name: releases
-      type: array
-      description: JSON string of release configurations
+    - name: component-release-plan-dir
+      type: string
+      default: ""
+      description: The directory where the component release plans are located.
+    - name: fbc-release-plan-dir
+      type: string
+      default: ""
+      description: The directory where the FBC release plans are located.
   results:
     - name: component-release-plans
-      description: List of component release plan file paths
+      type: array
     - name: fbc-release-plans
-      description: List of fbc release plan file paths
+      type: array
   steps:
     - name: validate-kind
       workingDir: /workspace/output/source
@@ -56,14 +60,17 @@ spec:
         list_files() {
           local dir=$1
           local result=$2
-          if [ -n "$dir" ] && [ -d "$dir" ]; then
-            files=$(find "$dir" -name '*.yaml' -print | jq -R -s 'split("\n")[:-1]')
-            echo "Found Release Plans:"
-            echo "$files" | jq '.'
-            echo -n "$files" > "$result"
+
+          if [ -n "$dir" ]; then
+            dir="/workspace/output/source/$dir"
+            if [ -d "$dir" ]; then
+              files=$(find "$dir" -name '*.yaml' -print | jq -R -s 'split("\n")[:-1]')
+              echo "$files" > "$result"
+            else
+              echo "[]" > "$result"
+            fi
           else
-            echo "No files found in $dir"
-            echo -n "[]" > "$result"
+            echo "[]" > "$result"
           fi
         }
 

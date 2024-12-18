@@ -60,14 +60,17 @@ spec:
         list_files() {
           local dir=$1
           local result=$2
-          if [ -n "$dir" ] && [ -d "$dir" ]; then
-            files=$(find "$dir" -name '*.yaml' -print | jq -R -s 'split("\n")[:-1]')
-            echo "Found Release's:"
-            echo "$files" | jq '.'
-            echo -n "$files" > "$result"
+
+          if [ -n "$dir" ]; then
+            dir="/workspace/output/source/$dir"
+            if [ -d "$dir" ]; then
+              files=$(find "$dir" -name '*.yaml' -print | jq -R -s 'split("\n")[:-1]')
+              echo "$files" > "$result"
+            else
+              echo "[]" > "$result"
+            fi
           else
-            echo "No files found in $dir"
-            echo -n "[]" > "$result"
+            echo "[]" > "$result"
           fi
         }
 
