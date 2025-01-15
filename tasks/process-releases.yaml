@@ -51,8 +51,6 @@ spec:
         validate_kind "$(params.component-release-dir)"
         validate_kind "$(params.fbc-release-dir)"
 
-        echo "Kind Validated..."
-
     - name: gather-file-paths
       script: |
         #!/bin/bash
