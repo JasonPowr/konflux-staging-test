@@ -51,6 +51,8 @@ spec:
         validate_kind "$(params.component-release-dir)"
         validate_kind "$(params.fbc-release-dir)"
 
+        echo "Kind Validated..."
+
     - name: gather-file-paths
       script: |
         #!/bin/bash
@@ -75,6 +77,12 @@ spec:
 
         list_files "$(params.component-release-dir)" "$(results.component-releases.path)"
         list_files "$(params.fbc-release-dir)" "$(results.fbc-releases.path)"
+
+        echo "Component Release Plans:"
+        cat "$(results.component-releases.path)"
+        echo ""
+        echo "FBC Release Plans:"
+        cat "$(results.fbc-releases.path)"
 
     - name: check-existing-release
       script: |

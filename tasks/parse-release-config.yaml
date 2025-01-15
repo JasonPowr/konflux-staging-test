@@ -82,9 +82,13 @@ spec:
         FBC_RELEASE_PLAN_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .releasePlanDir')"
         FBC_RELEASE_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .releaseDir')"
 
+        echo "Component Config:"
         echo "RUN_COMPONENT_RELEASE: $RUN_COMPONENT_RELEASE"
         echo "COMPONENT_RELEASE_PLAN_DIR: $COMPONENT_RELEASE_PLAN_DIR"
         echo "COMPONENT_RELEASE_DIR: $COMPONENT_RELEASE_DIR"
+
+        echo ""
+        echo "FBC Config:"
         echo "RUN_FBC_RELEASE: $RUN_FBC_RELEASE"
         echo "FBC_RELEASE_PLAN_DIR: $FBC_RELEASE_PLAN_DIR"
         echo "FBC_RELEASE_DIR: $FBC_RELEASE_DIR"
