@@ -20,6 +20,10 @@ spec:
       type: string
       default: ""
       description: The directory where the FBC release plans are located.
+    - name: env
+      type: string
+      default: stage
+      description: Release environment should be one of stage/prod
   results:
     - name: component-release-plans
       type: array
@@ -76,6 +80,35 @@ spec:
 
         validate_prod_label "$(params.component-release-plan-dir)"
         validate_prod_label "$(params.fbc-release-plan-dir)"
+
+    - name: "generate-prod-resources"
+      script: |
+        #!/bin/bash
+        set -euo pipefail
+
+        ENV="$(params.env)"
+        if [ "$ENV" == "stage" ]; then
+          echo "Staging enviroment found, skipping step..."
+          exit 0
+        fi
+
+        generate_prod_resources() {
+          local dir=$1
+
+          if [ -n "$dir" ] && [ -d "$dir" ]; then
+            for file in "$dir"/*.yaml; do
+              if [ -f "$file" ]; then
+                prod_rpa=$(yq e '.metadata.labels."release.rhtas.prod/releasePlanAdmission"' "$file")
+                stage_rpa=$(yq e '.metadata.labels."release.appstudio.openshift.io/releasePlanAdmission"' "$file")
+                echo "Replacing staging RPA: '${stage_rpa}' with the production one: '${prod_rpa}' in file: ${file}"
+                yq e -i '.metadata.labels."release.appstudio.openshift.io/releasePlanAdmission" = "'"$prod_rpa"'"' "$file"
+              fi
+            done
+          fi
+        }
+
+        generate_prod_resources "$(params.component-release-plan-dir)"
+        generate_prod_resources "$(params.fbc-release-plan-dir)"
 
     - name: gather-file-paths
       script: |

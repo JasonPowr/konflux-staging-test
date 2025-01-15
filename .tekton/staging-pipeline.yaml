@@ -74,6 +74,8 @@ spec:
           value: "$(tasks.parse-release-config.results.componentReleasePlanDirectory)"
         - name: fbc-release-plan-dir
           value: "$(tasks.parse-release-config.results.fbcReleasePlanDirectory)"
+        - name: env
+          value: "$(tasks.parse-release-config.results.env)"
       taskRef:
         resolver: git
         params:

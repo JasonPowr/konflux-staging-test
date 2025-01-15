@@ -25,9 +25,14 @@ spec:
     value: |
       - type: component
         run: true
-        env: stage
+        env: prod
         releasePlanDir: v1.0/component/releasePlans
         releaseDir: v1.0/component/releases
+      - type: fbc
+        run: true
+        env: prod
+        releasePlanDir: v1.0/fbc/releasePlans
+        releaseDir: v1.0/fbc/releases
   pipelineRef:
     name: rhtas-release
   taskRunTemplate:

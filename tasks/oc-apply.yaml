@@ -19,4 +19,5 @@ spec:
       workingDir: /workspace/output/source
       script: |
         echo "Applying: $(params.manifest)"
+        cat $(params.manifest)
         oc apply -f "$(params.manifest)"

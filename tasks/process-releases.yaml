@@ -10,6 +10,7 @@ spec:
       - name: HOME
         value: /workspace
     image: quay.io/konflux-ci/appstudio-utils:48c311af02858e2422d6229600e9959e496ddef1@sha256:91ddd999271f65d8ec8487b10f3dd378f81aa894e11b9af4d10639fd52bba7e8
+    workingDir: /workspace/output/source
   params:
     - name: component-release-dir
       type: string
@@ -26,7 +27,6 @@ spec:
       type: array
   steps:
     - name: validate-kind
-      workingDir: /workspace/output/source
       script: |
         #!/bin/bash
         set -euo pipefail
@@ -52,7 +52,6 @@ spec:
         validate_kind "$(params.fbc-release-dir)"
 
     - name: gather-file-paths
-      workingDir: /workspace/output/source
       script: |
         #!/bin/bash
         set -euo pipefail
@@ -78,7 +77,6 @@ spec:
         list_files "$(params.fbc-release-dir)" "$(results.fbc-releases.path)"
 
     - name: check-existing-release
-      workingDir: /workspace/output/source
       script: |
         #!/bin/bash
         set -euo pipefail
