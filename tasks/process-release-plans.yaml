@@ -54,8 +54,6 @@ spec:
         validate_kind "$(params.component-release-plan-dir)"
         validate_kind "$(params.fbc-release-plan-dir)"
 
-        echo "Kind Validated..."
-
     - name: validate-stage-label
       script: |
         #!/bin/bash
@@ -82,18 +80,18 @@ spec:
         validate_stage_label "$(params.component-release-plan-dir)"
         validate_stage_label "$(params.fbc-release-plan-dir)"
 
-    - name: generate-prod-resources
+    - name: generate-staging-resources
       script: |
         #!/bin/bash
         set -euo pipefail
 
         ENV="$(params.env)"
-        if [ "$ENV" == "stage" ]; then
-          echo "Staging enviroment found, skipping step..."
+        if [ "$ENV" == "prod" ]; then
+          echo "Production enviroment found, skipping step..."
           exit 0
         fi
 
-        generate_prod_resources() {
+        generate_staging_resources() {
           local dir=$1
 
           if [ -n "$dir" ] && [ -d "$dir" ]; then
@@ -101,15 +99,15 @@ spec:
               if [ -f "$file" ]; then
                 stage_rpa=$(yq e '.metadata.labels."release.rhtas.stage/releasePlanAdmission"' "$file")
                 prod_rpa=$(yq e '.metadata.labels."release.appstudio.openshift.io/releasePlanAdmission"' "$file")
-                echo "Replacing staging RPA: '${stage_rpa}' with the production one: '${prod_rpa}' in file: ${file}"
-                yq e -i '.metadata.labels."release.appstudio.openshift.io/releasePlanAdmission" = "'"$prod_rpa"'"' "$file"
+                echo "Replacing prod RPA: '${prod_rpa}' with the staging one: '${stage_rpa}' in file: ${file}"
+                yq e -i '.metadata.labels."release.appstudio.openshift.io/releasePlanAdmission" = "'"$stage_rpa"'"' "$file"
               fi
             done
           fi
         }
 
-        generate_prod_resources "$(params.component-release-plan-dir)"
-        generate_prod_resources "$(params.fbc-release-plan-dir)"
+        generate_staging_resources "$(params.component-release-plan-dir)"
+        generate_staging_resources "$(params.fbc-release-plan-dir)"
 
     - name: gather-file-paths
       script: |
