@@ -22,7 +22,6 @@ spec:
       description: The directory where the FBC release plans are located.
     - name: env
       type: string
-      default: stage
       description: Release environment should be one of stage/prod
   results:
     - name: component-release-plans
@@ -55,22 +54,22 @@ spec:
         validate_kind "$(params.component-release-plan-dir)"
         validate_kind "$(params.fbc-release-plan-dir)"
 
-    - name: validate-prod-label
+    - name: validate-stage-label
       script: |
         #!/bin/bash
         set -euo pipefail
 
-        validate_prod_label() {
+        validate_stage_label() {
           local dir=$1
 
           if [ -n "$dir" ] && [ -d "$dir" ]; then
             for file in "$dir"/*.yaml; do
               if [ -f "$file" ]; then
-                echo "Checking presence of 'release.rhtas.prod/releasePlanAdmission' label in file: $file"
+                echo "Checking presence of 'release.rhtas.stage/releasePlanAdmission' label in file: $file"
                 
-                label_value=$(yq e '.metadata.labels."release.rhtas.prod/releasePlanAdmission" // "null"' "$file")
+                label_value=$(yq e '.metadata.labels."release.rhtas.stage/releasePlanAdmission" // "null"' "$file")
                 if [ "$label_value" = "null" ]; then
-                  echo "Error: File $file is missing the label 'release.rhtas.prod/releasePlanAdmission'"
+                  echo "Error: File $file is missing the label 'release.rhtas.stage/releasePlanAdmission'"
                   exit 1
                 fi
               fi
@@ -78,10 +77,10 @@ spec:
           fi
         }
 
-        validate_prod_label "$(params.component-release-plan-dir)"
-        validate_prod_label "$(params.fbc-release-plan-dir)"
+        validate_stage_label "$(params.component-release-plan-dir)"
+        validate_stage_label "$(params.fbc-release-plan-dir)"
 
-    - name: "generate-prod-resources"
+    - name: generate-prod-resources
       script: |
         #!/bin/bash
         set -euo pipefail
@@ -98,8 +97,8 @@ spec:
           if [ -n "$dir" ] && [ -d "$dir" ]; then
             for file in "$dir"/*.yaml; do
               if [ -f "$file" ]; then
-                prod_rpa=$(yq e '.metadata.labels."release.rhtas.prod/releasePlanAdmission"' "$file")
-                stage_rpa=$(yq e '.metadata.labels."release.appstudio.openshift.io/releasePlanAdmission"' "$file")
+                stage_rpa=$(yq e '.metadata.labels."release.rhtas.stage/releasePlanAdmission"' "$file")
+                prod_rpa=$(yq e '.metadata.labels."release.appstudio.openshift.io/releasePlanAdmission"' "$file")
                 echo "Replacing staging RPA: '${stage_rpa}' with the production one: '${prod_rpa}' in file: ${file}"
                 yq e -i '.metadata.labels."release.appstudio.openshift.io/releasePlanAdmission" = "'"$prod_rpa"'"' "$file"
               fi
