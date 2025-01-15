@@ -30,6 +30,42 @@ spec:
     - name: env
       description: Release environment should be one of stage/prod
   steps:
+    - name: validate-config
+      script: |
+        #!/bin/bash
+        set -euo pipefail
+
+        RELEASES="$(params.releases)"
+
+        # Only one componant release is allowed
+        COMPONENT_COUNT=$(echo "$RELEASES" | yq '[.[] | select(.type == "component")] | length')
+        if [ "$COMPONENT_COUNT" -gt 1 ]; then
+          echo "ERROR: Found $COMPONENT_COUNT component items. Only 1 is allowed."
+          exit 1
+        fi
+
+        # Only one fbc release is allowed
+        FBC_COUNT=$(echo "$RELEASES" | yq '[.[] | select(.type == "fbc")] | length')
+        if [ "$FBC_COUNT" -gt 1 ]; then
+          echo "ERROR: Found $FBC_COUNT fbc items. Only 1 is allowed."
+          exit 1
+        fi
+
+        # Type should only be equal to component or fbc
+        INVALID_TYPES="$(echo "$RELEASES" | yq '.[].type' | grep -vE '^(component|fbc)$' || true)"
+        if [[ -n "${INVALID_TYPES}" ]]; then
+          echo "ERROR: Invalid 'type' found in release(s): ${INVALID_TYPES}"
+          echo "       Valid types are 'component' or 'fbc' only."
+          exit 1
+        fi
+
+        # Env should only be equal to stage or prod
+        INVALID_ENVS="$(echo "$RELEASES" | yq '.[].env' | grep -vE '^(stage|prod)$' || true)"
+        if [[ -n "${INVALID_ENVS}" ]]; then
+          echo "ERROR: Invalid 'env' detected. Must be 'stage' or 'prod': ${INVALID_ENVS}"
+          exit 1
+        fi
+
     - name: parse-release-config
       script: |
         #!/bin/bash
