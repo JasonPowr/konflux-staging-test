@@ -4,6 +4,7 @@ metadata:
   labels:
     release.appstudio.openshift.io/auto-release: "false"
     release.appstudio.openshift.io/releasePlanAdmission: test
+    release.rhtas.prod/releasePlanAdmission: prod-test
   name: test-5
   namespace: japower-tenant
 spec:

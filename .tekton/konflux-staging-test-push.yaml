@@ -24,7 +24,7 @@ spec:
   - name: releases
     value: |
       - type: component
-        run: false
+        run: true
         releasePlanDir: v1.0/component/releasePlans
         releaseDir: v1.0/component/releases
   pipelineRef:

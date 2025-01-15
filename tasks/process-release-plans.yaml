@@ -10,6 +10,7 @@ spec:
       - name: HOME
         value: /workspace
     image: quay.io/konflux-ci/appstudio-utils:48c311af02858e2422d6229600e9959e496ddef1@sha256:91ddd999271f65d8ec8487b10f3dd378f81aa894e11b9af4d10639fd52bba7e8
+    workingDir: /workspace/output/source
   params:
     - name: component-release-plan-dir
       type: string
@@ -26,7 +27,6 @@ spec:
       type: array
   steps:
     - name: validate-kind
-      workingDir: /workspace/output/source
       script: |
         #!/bin/bash
         set -euo pipefail
@@ -51,8 +51,33 @@ spec:
         validate_kind "$(params.component-release-plan-dir)"
         validate_kind "$(params.fbc-release-plan-dir)"
 
+    - name: validate-prod-label
+      script: |
+        #!/bin/bash
+        set -euo pipefail
+
+        validate_prod_label() {
+          local dir=$1
+
+          if [ -n "$dir" ] && [ -d "$dir" ]; then
+            for file in "$dir"/*.yaml; do
+              if [ -f "$file" ]; then
+                echo "Checking presence of 'release.rhtas.prod/releasePlanAdmission' label in file: $file"
+                
+                label_value=$(yq e '.metadata.labels."release.rhtas.prod/releasePlanAdmission" // "null"' "$file")
+                if [ "$label_value" = "null" ]; then
+                  echo "Error: File $file is missing the label 'release.rhtas.prod/releasePlanAdmission'"
+                  exit 1
+                fi
+              fi
+            done
+          fi
+        }
+
+        validate_prod_label "$(params.component-release-plan-dir)"
+        validate_prod_label "$(params.fbc-release-plan-dir)"
+
     - name: gather-file-paths
-      workingDir: /workspace/output/source
       script: |
         #!/bin/bash
         set -euo pipefail
