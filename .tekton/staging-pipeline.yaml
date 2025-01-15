@@ -17,6 +17,10 @@ spec:
     - name: releases
       default: ""
       description: "An array of yaml defined release configurations"
+    - name: env
+      type: string
+      default: stage
+      description: Release environment should be one of stage/prod
   tasks:
     - name: clone-repository
       params:
@@ -47,6 +51,8 @@ spec:
       runAfter:
         - clone-repository
       params:
+        - name: env
+          value: $(params.env)
         - name: releases
           value: $(params.releases)
       taskRef:
@@ -75,7 +81,7 @@ spec:
         - name: fbc-release-plan-dir
           value: "$(tasks.parse-release-config.results.fbcReleasePlanDirectory)"
         - name: env
-          value: "$(tasks.parse-release-config.results.env)"
+          value: $(params.env)
       taskRef:
         resolver: git
         params:

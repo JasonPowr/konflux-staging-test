@@ -21,16 +21,16 @@ spec:
     value: '{{source_url}}'
   - name: revision
     value: '{{revision}}'
+  - name: env
+    value: stage
   - name: releases
     value: |
       - type: component
         run: true
-        env: prod
         releasePlanDir: v1.0/component/releasePlans
         releaseDir: v1.0/component/releases
       - type: fbc
         run: true
-        env: prod
         releasePlanDir: v1.0/fbc/releasePlans
         releaseDir: v1.0/fbc/releases
   pipelineRef:
