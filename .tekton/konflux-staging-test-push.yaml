@@ -25,6 +25,7 @@ spec:
     value: |
       - type: component
         run: true
+        env: stage
         releasePlanDir: v1.0/component/releasePlans
         releaseDir: v1.0/component/releases
   pipelineRef:

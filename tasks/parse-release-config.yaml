@@ -27,6 +27,8 @@ spec:
       description: Directory where the FBC release plans are stored
     - name: fbcReleaseDirectory
       description: Directory where the FBC releases are stored
+    - name: env
+      description: Release environment should be one of stage/prod
   steps:
     - name: parse-release-config
       script: |
@@ -42,6 +44,8 @@ spec:
         FBC_RELEASE_PLAN_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .releasePlanDir')"
         FBC_RELEASE_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .releaseDir')"
 
+        ENV="$(echo "$RELEASES" | yq '.[] | .env')"
+
         echo "RUN_COMPONENT_RELEASE: $RUN_COMPONENT_RELEASE"
         echo "COMPONENT_RELEASE_PLAN_DIR: $COMPONENT_RELEASE_PLAN_DIR"
         echo "COMPONENT_RELEASE_DIR: $COMPONENT_RELEASE_DIR"
@@ -49,9 +53,13 @@ spec:
         echo "FBC_RELEASE_PLAN_DIR: $FBC_RELEASE_PLAN_DIR"
         echo "FBC_RELEASE_DIR: $FBC_RELEASE_DIR"
 
+        echo "ENV: $ENV"
+
         echo -n "$RUN_COMPONENT_RELEASE" > $(results.runComponentRelease.path)
         echo -n "$COMPONENT_RELEASE_PLAN_DIR" > $(results.componentReleasePlanDirectory.path)
         echo -n "$COMPONENT_RELEASE_DIR" > $(results.componentReleaseDirectory.path)
         echo -n "$RUN_FBC_RELEASE" > $(results.runFbcRelease.path)
         echo -n "$FBC_RELEASE_PLAN_DIR" > $(results.fbcReleasePlanDirectory.path)
         echo -n "$FBC_RELEASE_DIR" > $(results.fbcReleaseDirectory.path)
+
+        echo -n "$ENV" > $(results.env.path)
