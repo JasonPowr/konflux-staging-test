@@ -1,1 +1,2 @@
 # konflux-staging-test
+.
