@@ -107,6 +107,8 @@ spec:
           value: "$(tasks.parse-release-config.results.componentReleaseDirectory)"
         - name: fbc-release-dir
           value: "$(tasks.parse-release-config.results.fbcReleaseDirectory)"
+        - name: env
+          value: $(params.env)
       taskRef:
         resolver: git
         params:

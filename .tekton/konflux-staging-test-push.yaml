@@ -22,7 +22,7 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: env
-    value: prod
+    value: stage
   - name: releases
     value: |
       - type: component

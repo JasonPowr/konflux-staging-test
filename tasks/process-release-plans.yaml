@@ -97,10 +97,18 @@ spec:
           if [ -n "$dir" ] && [ -d "$dir" ]; then
             for file in "$dir"/*.yaml; do
               if [ -f "$file" ]; then
+                echo ""
                 stage_rpa=$(yq e '.metadata.labels."release.rhtas.stage/releasePlanAdmission"' "$file")
                 prod_rpa=$(yq e '.metadata.labels."release.appstudio.openshift.io/releasePlanAdmission"' "$file")
                 echo "Replacing prod RPA: '${prod_rpa}' with the staging one: '${stage_rpa}' in file: ${file}"
                 yq e -i '.metadata.labels."release.appstudio.openshift.io/releasePlanAdmission" = "'"$stage_rpa"'"' "$file"
+
+                rp_name=$(yq e '.metadata.name' "$file")
+                echo "Appending '-stage' to ReleasePlan name: '${rp_name}' in file: ${file}"
+                yq e -i '.metadata.name |= . + "-stage"' "$file"
+
+                new_rp_name=$(yq e '.metadata.name' "$file")
+                echo "New RP name: '${new_rp_name}'"
               fi
             done
           fi
