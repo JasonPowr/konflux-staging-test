@@ -105,7 +105,7 @@ spec:
           if [ -n "$dir" ]; then
             dir="/workspace/output/source/$dir"
             if [ -d "$dir" ]; then
-              files=$(find "$dir" -name '*.yaml' -print | jq -R -s 'split("\n")[:-1]')
+              files=$(find "$dir" -maxdepth 1 -type f -name '*.yaml' -print | jq -R -s 'split("\n")[:-1]')
               echo "$files" > "$result"
             else
               echo "[]" > "$result"
@@ -118,10 +118,10 @@ spec:
         list_files "$(params.component-release-dir)" "$(results.component-releases.path)"
         list_files "$(params.fbc-release-dir)" "$(results.fbc-releases.path)"
 
-        echo "Component Release Plans:"
+        echo "Component Releases:"
         cat "$(results.component-releases.path)"
         echo ""
-        echo "FBC Release Plans:"
+        echo "FBC Releases:"
         cat "$(results.fbc-releases.path)"
 
     - name: remove-outdated-releases

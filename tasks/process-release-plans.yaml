@@ -59,6 +59,12 @@ spec:
         #!/bin/bash
         set -euo pipefail
 
+        ENV="$(params.env)"
+        if [ "$ENV" == "prod" ]; then
+          echo "Production enviroment found, skipping step..."
+          exit 0
+        fi
+
         validate_stage_label() {
           local dir=$1
 
@@ -129,7 +135,7 @@ spec:
           if [ -n "$dir" ]; then
             dir="/workspace/output/source/$dir"
             if [ -d "$dir" ]; then
-              files=$(find "$dir" -name '*.yaml' -print | jq -R -s 'split("\n")[:-1]')
+              files=$(find "$dir" -maxdepth 1 -type f -name '*.yaml' -print | jq -R -s 'split("\n")[:-1]')
               echo "$files" > "$result"
             else
               echo "[]" > "$result"

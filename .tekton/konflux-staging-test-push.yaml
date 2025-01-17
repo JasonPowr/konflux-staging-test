@@ -27,12 +27,8 @@ spec:
     value: |
       - type: component
         run: true
-        releasePlanDir: v1.0/component/releasePlans
-        releaseDir: v1.0/component/releases
-      - type: fbc
-        run: true
-        releasePlanDir: v1.0/fbc/releasePlans
-        releaseDir: v1.0/fbc/releases
+        releasePlanDir: v1.0/stable/releasePlans
+        releaseDir: v1.0/stable/releases
   pipelineRef:
     name: rhtas-release
   taskRunTemplate:
