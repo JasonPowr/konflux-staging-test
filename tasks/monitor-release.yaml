@@ -26,19 +26,24 @@ spec:
         exit 0 #temp for passing example REMOVE
 
         while true; do
+            echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Checking release status..."
+
             RELEASED_REASON=$(oc get -f "$RELEASE_FILE" -o jsonpath='{.status.conditions[?(@.type=="Released")].reason}' || true)
             VALIDATED_REASON=$(oc get -f "$RELEASE_FILE" -o jsonpath='{.status.conditions[?(@.type=="Validated")].reason}' || true)
 
+            echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] ReleasedReason: ${RELEASED_REASON:-<none>} | ValidatedReason: ${VALIDATED_REASON:-<none>}"
+
             if [[ "$RELEASED_REASON" == "Failed" || "$VALIDATED_REASON" == "Failed" ]]; then
-                echo "Release failed."
+                echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Release has failed. Printing resource for debugging..."
                 oc get -f "$RELEASE_FILE" -o yaml
                 exit 1
             fi
 
             if [[ "$RELEASED_REASON" == "Succeeded" && "$VALIDATED_REASON" == "Succeeded" ]]; then
-                echo "Release succeeded."
+                echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Both Released and Validated conditions report 'Succeeded'."
                 exit 0
             fi
 
+            echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Release not yet complete. Sleeping for 60 seconds before next check..."
             sleep 60
         done
