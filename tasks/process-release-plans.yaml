@@ -148,4 +148,28 @@ spec:
         echo "FBC Release Plans:"
         cat "$(results.fbc-release-plans.path)"
 
+
+    - name: remove-outdated-release-plans
+      script: |
+        #!/bin/bash
+        set -euo pipefail
+
+        remove_outdated_release_plans() {
+          local dir="$1"
+
+          if [ -n "$dir" ] && [ -d "$dir" ]; then
+            for file in "$dir"/*.yaml; do
+              if [ -f "$file" ]; then
+                if oc get -f "$file" &>/dev/null; then
+                  echo "Deleting outdated release Plans: $file"
+                  oc delete -f "$file"
+                fi
+              fi
+            done
+          fi
+        }
+
+        remove_outdated_release_plans "$(params.component-release-plan-dir)"
+        remove_outdated_release_plans "$(params.fbc-release-plan-dir)"
+
 ## Other steps can be defined here for extra processing or validation

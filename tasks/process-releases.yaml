@@ -124,30 +124,27 @@ spec:
         echo "FBC Release Plans:"
         cat "$(results.fbc-releases.path)"
 
-    - name: check-existing-release
+    - name: remove-outdated-releases
       script: |
         #!/bin/bash
         set -euo pipefail
 
-        check_and_delete_failed_release() {
-          local dir=$1
+        remove_outdated_releases() {
+          local dir="$1"
 
           if [ -n "$dir" ] && [ -d "$dir" ]; then
             for file in "$dir"/*.yaml; do
               if [ -f "$file" ]; then
                 if oc get -f "$file" &>/dev/null; then
-                  STATUS=$(oc get -f "$file" -o jsonpath='{.status.conditions[?(@.type=="Released")].status}')
-                  if [ "$STATUS" = "False" ]; then
-                    echo "Deleting failed release: $file"
-                    oc delete -f "$file"
-                  fi
+                  echo "Deleting outdated release: $file"
+                  oc delete -f "$file"
                 fi
               fi
             done
           fi
         }
 
-        check_and_delete_failed_release "$(params.component-release-dir)"
-        check_and_delete_failed_release "$(params.fbc-release-dir)"
+        remove_outdated_releases "$(params.component-release-dir)"
+        remove_outdated_releases "$(params.fbc-release-dir)"
 
 ## Other steps can be defined here for extra processing or validation
