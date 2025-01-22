@@ -17,13 +17,13 @@ spec:
     - name: env
       description: Release environment should be one of stage/prod
   results:
-    - name: runComponentRelease
+    - name: releaseComponent
       description: Indicates whether to execute the component release process
     - name: componentReleasePlanDirectory
       description: Directory where the component release plans are stored
     - name: componentReleaseDirectory
       description: Directory where the component releases are stored
-    - name: runFbcRelease
+    - name: releaseFBC
       description: Indicates whether to execute the FBC release process
     - name: fbcReleasePlanDirectory
       description: Directory where the FBC release plans are stored
@@ -66,6 +66,14 @@ spec:
           exit 1
         fi
 
+        # Make sure `release` is strictly `true` or `false`
+        INVALID_RELEASES="$(echo "$RELEASES" | yq '.[].release' | grep -vE '^(true|false)$' || true)"
+        if [[ -n "$INVALID_RELEASES" ]]; then
+          echo "ERROR: Invalid 'release' value(s) found: ${INVALID_RELEASES}"
+          echo "       Valid 'release' values are 'true' or 'false' only."
+          exit 1
+        fi
+
         echo "Release Config Validated..."
 
     - name: parse-release-config
@@ -74,11 +82,11 @@ spec:
         set -euo pipefail
 
         RELEASES="$(params.releases)"
-        RUN_COMPONENT_RELEASE="$(echo "$RELEASES" | yq '.[] | select(.type == "component") | .run')"
+        RELEASE_COMPONENT="$(echo "$RELEASES" | yq '.[] | select(.type == "component") | .release')"
         COMPONENT_RELEASE_PLAN_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "component") | .releasePlanDir')"
         COMPONENT_RELEASE_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "component") | .releaseDir')"
 
-        RUN_FBC_RELEASE="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .run')"
+        RELEASE_FBC="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .release')"
         FBC_RELEASE_PLAN_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .releasePlanDir')"
         FBC_RELEASE_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .releaseDir')"
 
@@ -86,19 +94,19 @@ spec:
 
         echo ""
         echo "Component Config:"
-        echo "RUN_COMPONENT_RELEASE: $RUN_COMPONENT_RELEASE"
+        echo "RELEASE_COMPONENT: $RELEASE_COMPONENT"
         echo "COMPONENT_RELEASE_PLAN_DIR: $COMPONENT_RELEASE_PLAN_DIR"
         echo "COMPONENT_RELEASE_DIR: $COMPONENT_RELEASE_DIR"
 
         echo ""
         echo "FBC Config:"
-        echo "RUN_FBC_RELEASE: $RUN_FBC_RELEASE"
+        echo "RELEASE_FBC: $RELEASE_FBC"
         echo "FBC_RELEASE_PLAN_DIR: $FBC_RELEASE_PLAN_DIR"
         echo "FBC_RELEASE_DIR: $FBC_RELEASE_DIR"
 
-        echo -n "$RUN_COMPONENT_RELEASE" > $(results.runComponentRelease.path)
+        echo -n "$RELEASE_COMPONENT" > $(results.releaseComponent.path)
         echo -n "$COMPONENT_RELEASE_PLAN_DIR" > $(results.componentReleasePlanDirectory.path)
         echo -n "$COMPONENT_RELEASE_DIR" > $(results.componentReleaseDirectory.path)
-        echo -n "$RUN_FBC_RELEASE" > $(results.runFbcRelease.path)
+        echo -n "$RELEASE_FBC" > $(results.releaseFBC.path)
         echo -n "$FBC_RELEASE_PLAN_DIR" > $(results.fbcReleasePlanDirectory.path)
         echo -n "$FBC_RELEASE_DIR" > $(results.fbcReleaseDirectory.path)

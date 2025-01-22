@@ -129,6 +129,12 @@ spec:
         #!/bin/bash
         set -euo pipefail
 
+        ENV="$(params.env)"
+        if [ "$ENV" == "prod" ]; then
+          echo "Production enviroment found, skipping step..."
+          exit 0
+        fi
+
         remove_outdated_releases() {
           local dir="$1"
 

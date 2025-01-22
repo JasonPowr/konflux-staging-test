@@ -10,21 +10,29 @@ spec:
       - name: HOME
         value: /workspace
     image: quay.io/konflux-ci/appstudio-utils:48c311af02858e2422d6229600e9959e496ddef1@sha256:91ddd999271f65d8ec8487b10f3dd378f81aa894e11b9af4d10639fd52bba7e8
+    workingDir: /workspace/output/source
   params:
+    - name: manifest
+      type: string
+      description: Release manifest to monitor
     - name: release
       type: string
-      description: Release to monitor
+      default: "false"
+      description: whether or not to apply the manifest for a component
   steps:
     - name: monitor-release
-      workingDir: /workspace/output/source
       script: |
         #!/usr/bin/env bash
         set -euo pipefail
 
-        RELEASE_FILE="$(params.release)"
+        if [ "$(params.release)" == "false" ]; then
+          echo "Release is false, skipping task..."
+          exit 0
+        fi
 
-        exit 0 #temp for passing example REMOVE
+        exit 0
 
+        RELEASE_FILE="$(params.manifest)"
         while true; do
             echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Checking release status..."
 

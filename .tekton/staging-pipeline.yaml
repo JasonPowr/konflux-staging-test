@@ -130,6 +130,9 @@ spec:
       runAfter:
         - process-release-plans
         - process-releases
+      params:
+        - name: release
+          value: "$(tasks.parse-release-config.results.releaseComponent)"
       matrix:
         params:
           - name: manifest
@@ -142,18 +145,16 @@ spec:
           - name: revision
             value: main
           - name: pathInRepo
-            value: tasks/oc-apply.yaml
+            value: tasks/apply-manifest.yaml
       workspaces:
         - name: output
           workspace: workspace
-      when:
-        - input: "$(tasks.parse-release-config.results.runComponentRelease)"
-          operator: in
-          values:
-            - "true"
     - name: apply-component-release
       runAfter:
         - apply-component-release-plans
+      params:
+        - name: release
+          value: "$(tasks.parse-release-config.results.releaseComponent)"
       matrix:
         params:
           - name: manifest
@@ -166,21 +167,19 @@ spec:
           - name: revision
             value: main
           - name: pathInRepo
-            value: tasks/oc-apply.yaml
+            value: tasks/apply-manifest.yaml
       workspaces:
         - name: output
           workspace: workspace
-      when:
-        - input: "$(tasks.parse-release-config.results.runComponentRelease)"
-          operator: in
-          values:
-            - "true"
     - name: monitor-component-release
       runAfter:
         - apply-component-release
+      params:
+        - name: release
+          value: "$(tasks.parse-release-config.results.releaseComponent)"
       matrix:
         params:
-          - name: release
+          - name: manifest
             value: "$(tasks.process-releases.results.component-releases)"
       taskRef:
         resolver: git
@@ -195,14 +194,12 @@ spec:
       workspaces:
         - name: output
           workspace: workspace
-      when:
-        - input: "$(tasks.parse-release-config.results.runComponentRelease)"
-          operator: in
-          values:
-            - "true"
     - name: apply-fbc-release-plans
       runAfter:
         - monitor-component-release
+      params:
+        - name: release
+          value: "$(tasks.parse-release-config.results.releaseFBC)"
       matrix:
         params:
           - name: manifest
@@ -215,18 +212,16 @@ spec:
           - name: revision
             value: main
           - name: pathInRepo
-            value: tasks/oc-apply.yaml
+            value: tasks/apply-manifest.yaml
       workspaces:
         - name: output
           workspace: workspace
-      when:
-        - input: "$(tasks.parse-release-config.results.runFbcRelease)"
-          operator: in
-          values:
-            - "true"
     - name: apply-fbc-release
       runAfter:
         - apply-fbc-release-plans
+      params:
+        - name: release
+          value: "$(tasks.parse-release-config.results.releaseFBC)"
       matrix:
         params:
           - name: manifest
@@ -239,21 +234,19 @@ spec:
           - name: revision
             value: main
           - name: pathInRepo
-            value: tasks/oc-apply.yaml
+            value: tasks/apply-manifest.yaml
       workspaces:
         - name: output
           workspace: workspace
-      when:
-        - input: "$(tasks.parse-release-config.results.runFbcRelease)"
-          operator: in
-          values:
-            - "true"
     - name: monitor-fbc-release
       runAfter:
         - apply-fbc-release
+      params:
+        - name: release
+          value: "$(tasks.parse-release-config.results.releaseFBC)"
       matrix:
         params:
-          - name: release
+          - name: manifest
             value: "$(tasks.process-releases.results.fbc-releases)"
       taskRef:
         resolver: git
@@ -268,11 +261,6 @@ spec:
       workspaces:
         - name: output
           workspace: workspace
-      when:
-        - input: "$(tasks.parse-release-config.results.runFbcRelease)"
-          operator: in
-          values:
-            - "true"
   workspaces:
   - name: workspace
   - name: git-auth
