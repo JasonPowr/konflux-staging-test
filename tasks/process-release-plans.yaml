@@ -1,3 +1,4 @@
+---
 apiVersion: tekton.dev/v1
 kind: Task
 metadata:
@@ -16,6 +17,10 @@ spec:
       type: string
       default: ""
       description: The directory where the component release plans are located.
+    - name: operator-release-plan-dir
+      type: string
+      default: ""
+      description: The directory where the Operator release plans are located.
     - name: fbc-release-plan-dir
       type: string
       default: ""
@@ -25,6 +30,8 @@ spec:
       description: Release environment should be one of stage/prod
   results:
     - name: component-release-plans
+      type: array
+    - name: operator-release-plans
       type: array
     - name: fbc-release-plans
       type: array
@@ -52,6 +59,7 @@ spec:
         }
 
         validate_kind "$(params.component-release-plan-dir)"
+        validate_kind "$(params.operator-release-plan-dir)"
         validate_kind "$(params.fbc-release-plan-dir)"
 
     - name: validate-stage-label
@@ -72,7 +80,6 @@ spec:
             for file in "$dir"/*.yaml; do
               if [ -f "$file" ]; then
                 echo "Checking presence of 'release.rhtas.stage/releasePlanAdmission' label in file: $file"
-                
                 label_value=$(yq e '.metadata.labels."release.rhtas.stage/releasePlanAdmission" // "null"' "$file")
                 if [ "$label_value" = "null" ]; then
                   echo "Error: File $file is missing the label 'release.rhtas.stage/releasePlanAdmission'"
@@ -84,6 +91,7 @@ spec:
         }
 
         validate_stage_label "$(params.component-release-plan-dir)"
+        validate_stage_label "$(params.operator-release-plan-dir)"
         validate_stage_label "$(params.fbc-release-plan-dir)"
 
     - name: generate-staging-resources
@@ -121,6 +129,7 @@ spec:
         }
 
         generate_staging_resources "$(params.component-release-plan-dir)"
+        generate_staging_resources "$(params.operator-release-plan-dir)"
         generate_staging_resources "$(params.fbc-release-plan-dir)"
 
     - name: gather-file-paths
@@ -146,10 +155,14 @@ spec:
         }
 
         list_files "$(params.component-release-plan-dir)" "$(results.component-release-plans.path)"
+        list_files "$(params.operator-release-plan-dir)" "$(results.operator-release-plans.path)"
         list_files "$(params.fbc-release-plan-dir)" "$(results.fbc-release-plans.path)"
 
         echo "Component Release Plans:"
         cat "$(results.component-release-plans.path)"
+        echo ""
+        echo "Operator Release Plans:"
+        cat "$(results.operator-release-plans.path)"
         echo ""
         echo "FBC Release Plans:"
         cat "$(results.fbc-release-plans.path)"
@@ -182,6 +195,7 @@ spec:
         }
 
         remove_outdated_release_plans "$(params.component-release-plan-dir)"
+        remove_outdated_release_plans "$(params.operator-release-plan-dir)"
         remove_outdated_release_plans "$(params.fbc-release-plan-dir)"
 
 ## Other steps can be defined here for extra processing or validation

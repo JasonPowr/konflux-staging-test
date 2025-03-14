@@ -1,3 +1,4 @@
+---
 apiVersion: tekton.dev/v1
 kind: Task
 metadata:
@@ -17,17 +18,23 @@ spec:
     - name: env
       description: Release environment should be one of stage/prod
   results:
-    - name: releaseComponent
+    - name: release-component
       description: Indicates whether to execute the component release process
-    - name: componentReleasePlanDirectory
+    - name: component-release-plan-dir
       description: Directory where the component release plans are stored
-    - name: componentReleaseDirectory
+    - name: component-release-dir
       description: Directory where the component releases are stored
-    - name: releaseFBC
+    - name: release-operator
+      description: Indicates whether to execute the operator release process
+    - name: operator-release-plan-dir
+      description: Directory where the operator release plans are stored
+    - name: operator-release-dir
+      description: Directory where the operator releases are stored
+    - name: release-fbc
       description: Indicates whether to execute the FBC release process
-    - name: fbcReleasePlanDirectory
+    - name: fbc-release-plan-dir
       description: Directory where the FBC release plans are stored
-    - name: fbcReleaseDirectory
+    - name: fbc-release-dir
       description: Directory where the FBC releases are stored
   steps:
     - name: validate-config
@@ -45,6 +52,13 @@ spec:
           exit 1
         fi
 
+        # Only one operator release is allowed
+        OPERATOR_COUNT=$(echo "$RELEASES" | yq '[.[] | select(.type == "operator")] | length')
+        if [ "$OPERATOR_COUNT" -gt 1 ]; then
+          echo "ERROR: Found $OPERATOR_COUNT operator items. Only 1 is allowed."
+          exit 1
+        fi
+
         # Only one fbc release is allowed
         FBC_COUNT=$(echo "$RELEASES" | yq '[.[] | select(.type == "fbc")] | length')
         if [ "$FBC_COUNT" -gt 1 ]; then
@@ -52,11 +66,11 @@ spec:
           exit 1
         fi
 
-        # Type should only be equal to component or fbc
-        INVALID_TYPES="$(echo "$RELEASES" | yq '.[].type' | grep -vE '^(component|fbc)$' || true)"
+        # Type should only be equal to component,operator or fbc
+        INVALID_TYPES="$(echo "$RELEASES" | yq '.[].type' | grep -vE '^(component|operator|fbc)$' || true)"
         if [[ -n "${INVALID_TYPES}" ]]; then
           echo "ERROR: Invalid 'type' found in release(s): ${INVALID_TYPES}"
-          echo "       Valid types are 'component' or 'fbc' only."
+          echo "       Valid types are component,operator or fbc only."
           exit 1
         fi
 
@@ -86,6 +100,10 @@ spec:
         COMPONENT_RELEASE_PLAN_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "component") | .releasePlanDir')"
         COMPONENT_RELEASE_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "component") | .releaseDir')"
 
+        RELEASE_OPERATOR="$(echo "$RELEASES" | yq '.[] | select(.type == "operator") | .release')"
+        OPERATOR_RELEASE_PLAN_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "operator") | .releasePlanDir')"
+        OPERATOR_RELEASE_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "operator") | .releaseDir')"
+
         RELEASE_FBC="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .release')"
         FBC_RELEASE_PLAN_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .releasePlanDir')"
         FBC_RELEASE_DIR="$(echo "$RELEASES" | yq '.[] | select(.type == "fbc") | .releaseDir')"
@@ -99,14 +117,23 @@ spec:
         echo "COMPONENT_RELEASE_DIR: $COMPONENT_RELEASE_DIR"
 
         echo ""
+        echo "Operator Config:"
+        echo "RELEASE_OPERATOR: $RELEASE_OPERATOR"
+        echo "OPERATOR_RELEASE_PLAN_DIR: $OPERATOR_RELEASE_PLAN_DIR"
+        echo "OPERATOR_RELEASE_DIR: $OPERATOR_RELEASE_DIR"
+
+        echo ""
         echo "FBC Config:"
         echo "RELEASE_FBC: $RELEASE_FBC"
         echo "FBC_RELEASE_PLAN_DIR: $FBC_RELEASE_PLAN_DIR"
         echo "FBC_RELEASE_DIR: $FBC_RELEASE_DIR"
 
-        echo -n "$RELEASE_COMPONENT" > $(results.releaseComponent.path)
-        echo -n "$COMPONENT_RELEASE_PLAN_DIR" > $(results.componentReleasePlanDirectory.path)
-        echo -n "$COMPONENT_RELEASE_DIR" > $(results.componentReleaseDirectory.path)
-        echo -n "$RELEASE_FBC" > $(results.releaseFBC.path)
-        echo -n "$FBC_RELEASE_PLAN_DIR" > $(results.fbcReleasePlanDirectory.path)
-        echo -n "$FBC_RELEASE_DIR" > $(results.fbcReleaseDirectory.path)
+        echo -n "$RELEASE_COMPONENT" > $(results.release-component.path)
+        echo -n "$COMPONENT_RELEASE_PLAN_DIR" > $(results.component-release-plan-dir.path)
+        echo -n "$COMPONENT_RELEASE_DIR" > $(results.component-release-dir.path)
+        echo -n "$RELEASE_OPERATOR" > $(results.release-operator.path)
+        echo -n "$OPERATOR_RELEASE_PLAN_DIR" > $(results.operator-release-plan-dir.path)
+        echo -n "$OPERATOR_RELEASE_DIR" > $(results.operator-release-dir.path)
+        echo -n "$RELEASE_FBC" > $(results.release-fbc.path)
+        echo -n "$FBC_RELEASE_PLAN_DIR" > $(results.fbc-release-plan-dir.path)
+        echo -n "$FBC_RELEASE_DIR" > $(results.fbc-release-dir.path)

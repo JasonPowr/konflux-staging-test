@@ -1,3 +1,4 @@
+---
 apiVersion: tekton.dev/v1
 kind: Task
 metadata:
@@ -30,8 +31,6 @@ spec:
           exit 0
         fi
 
-        exit 0
-
         RELEASE_FILE="$(params.manifest)"
         while true; do
             echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Checking release status..."
@@ -54,4 +53,35 @@ spec:
 
             echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Release not yet complete. Sleeping for 60 seconds before next check..."
             sleep 60
+        done
+
+    - name: check-released-image
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        if [ "$(params.release)" == "false" ]; then
+          echo "Release is false, skipping task..."
+          exit 0
+        fi
+
+        RELEASE_FILE="$(params.manifest)"
+        IMAGE_URLS=$(oc get -f "$RELEASE_FILE" -o json | jq '.status.artifacts.images[].urls | map(
+          if test("quay.io/redhat-prod/rhtas") then
+            sub("quay.io/redhat-prod/rhtas"; "registry.redhat.io/rhtas")
+          elif test("quay.io/redhat-pending/rhta") then
+            sub("quay.io/redhat-pending/rhta"; "registry.stage.redhat.io/rhtas")
+          else
+            .
+          end
+        )')
+
+        echo "$IMAGE_URLS" | jq -r '.[]' | while IFS= read -r image; do
+          echo "Checking image: $image"
+          if skopeo inspect "docker://$image" > /dev/null 2>&1; then
+            echo "Image $image is available."
+          else
+            echo "Image $image is not available."
+            exit 1
+          fi
         done

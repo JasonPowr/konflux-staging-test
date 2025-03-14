@@ -27,12 +27,16 @@ spec:
     value: |
       - type: component
         release: false
-        releasePlanDir: v1.0/stable/releasePlans
-        releaseDir: v1.0/stable/releases
+        releasePlanDir: v1.0/stable/releasePlans/components
+        releaseDir: v1.0/stable/releases/components
+      - type: operator
+        release: false
+        releasePlanDir: v1.0/stable/releasePlans/operator
+        releaseDir: v1.0/stable/releases/operator
       - type: fbc
-        release: true
-        releasePlanDir: v1.0/stable/releasePlans/FBCs
-        releaseDir: v1.0/stable/releases/FBCs
+        release: false
+        releasePlanDir: v1.0/stable/releasePlans/fbc
+        releaseDir: v1.0/stable/releases/fbc
   pipelineRef:
     name: rhtas-release
   taskRunTemplate:

@@ -1,3 +1,4 @@
+---
 apiVersion: tekton.dev/v1
 kind: Task
 metadata:
@@ -16,6 +17,10 @@ spec:
       type: string
       default: ""
       description: The directory where the component releases are located.
+    - name: operator-release-dir
+      type: string
+      default: ""
+      description: The directory where the operator releases are located.
     - name: fbc-release-dir
       type: string
       default: ""
@@ -25,6 +30,8 @@ spec:
       description: Release environment should be one of stage/prod
   results:
     - name: component-releases
+      type: array
+    - name: operator-releases
       type: array
     - name: fbc-releases
       type: array
@@ -52,6 +59,7 @@ spec:
         }
 
         validate_kind "$(params.component-release-dir)"
+        validate_kind "$(params.operator-release-dir)"
         validate_kind "$(params.fbc-release-dir)"
 
     - name: generate-staging-resources
@@ -91,6 +99,7 @@ spec:
         }
 
         generate_staging_resources "$(params.component-release-dir)"
+        generate_staging_resources "$(params.operator-release-dir)"
         generate_staging_resources "$(params.fbc-release-dir)"
 
     - name: gather-file-paths
@@ -116,10 +125,14 @@ spec:
         }
 
         list_files "$(params.component-release-dir)" "$(results.component-releases.path)"
+        list_files "$(params.operator-release-dir)" "$(results.operator-releases.path)"
         list_files "$(params.fbc-release-dir)" "$(results.fbc-releases.path)"
 
         echo "Component Releases:"
         cat "$(results.component-releases.path)"
+        echo ""
+        echo "Operator Releases:"
+        cat "$(results.operator-releases.path)"
         echo ""
         echo "FBC Releases:"
         cat "$(results.fbc-releases.path)"
@@ -151,6 +164,7 @@ spec:
         }
 
         remove_outdated_releases "$(params.component-release-dir)"
+        remove_outdated_releases "$(params.operator-release-dir)"
         remove_outdated_releases "$(params.fbc-release-dir)"
 
 ## Other steps can be defined here for extra processing or validation

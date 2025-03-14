@@ -1,3 +1,4 @@
+---
 apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
@@ -5,7 +6,8 @@ metadata:
   namespace: japower-tenant
 spec:
   description: |
-    A pipeline used to process and apply release and releasePlan objects for RHTAS.
+    A pipeline used to process and apply release and
+    releasePlan objects for RHTAS.
   params:
     - name: git-url
       type: string
@@ -24,24 +26,24 @@ spec:
   tasks:
     - name: clone-repository
       params:
-      - name: url
-        value: $(params.git-url)
-      - name: revision
-        value: $(params.revision)
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.revision)
       taskRef:
         params:
-        - name: name
-          value: git-clone
-        - name: bundle
-          value: quay.io/konflux-ci/tekton-catalog/task-git-clone:0.1@sha256:d091a9e19567a4cbdc5acd57903c71ba71dc51d749a4ba7477e689608851e981
-        - name: kind
-          value: task
+          - name: name
+            value: git-clone
+          - name: bundle
+            value: quay.io/konflux-ci/tekton-catalog/task-git-clone:0.1@sha256:d091a9e19567a4cbdc5acd57903c71ba71dc51d749a4ba7477e689608851e981
+          - name: kind
+            value: task
         resolver: bundles
       workspaces:
-      - name: output
-        workspace: workspace
-      - name: basic-auth
-        workspace: git-auth
+        - name: output
+          workspace: workspace
+        - name: basic-auth
+          workspace: git-auth
       when:
         - input: "$(params.releases)"
           operator: notin
@@ -59,7 +61,7 @@ spec:
         resolver: git
         params:
           - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
+            value: https://github.com/JasonPowr/konflux-staging-test.git
           - name: revision
             value: main
           - name: pathInRepo
@@ -77,16 +79,18 @@ spec:
         - parse-release-config
       params:
         - name: component-release-plan-dir
-          value: "$(tasks.parse-release-config.results.componentReleasePlanDirectory)"
+          value: "$(tasks.parse-release-config.results.component-release-plan-dir)"
+        - name: operator-release-plan-dir
+          value: "$(tasks.parse-release-config.results.operator-release-plan-dir)"
         - name: fbc-release-plan-dir
-          value: "$(tasks.parse-release-config.results.fbcReleasePlanDirectory)"
+          value: "$(tasks.parse-release-config.results.fbc-release-plan-dir)"
         - name: env
           value: $(params.env)
       taskRef:
         resolver: git
         params:
           - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
+            value: https://github.com/JasonPowr/konflux-staging-test.git
           - name: revision
             value: main
           - name: pathInRepo
@@ -101,19 +105,21 @@ spec:
             - ""
     - name: process-releases
       runAfter:
-        - clone-repository
+        - parse-release-config
       params:
         - name: component-release-dir
-          value: "$(tasks.parse-release-config.results.componentReleaseDirectory)"
+          value: "$(tasks.parse-release-config.results.component-release-dir)"
+        - name: operator-release-dir
+          value: "$(tasks.parse-release-config.results.operator-release-dir)"
         - name: fbc-release-dir
-          value: "$(tasks.parse-release-config.results.fbcReleaseDirectory)"
+          value: "$(tasks.parse-release-config.results.fbc-release-dir)"
         - name: env
           value: $(params.env)
       taskRef:
         resolver: git
         params:
           - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
+            value: https://github.com/JasonPowr/konflux-staging-test.git
           - name: revision
             value: main
           - name: pathInRepo
@@ -132,7 +138,7 @@ spec:
         - process-releases
       params:
         - name: release
-          value: "$(tasks.parse-release-config.results.releaseComponent)"
+          value: "$(tasks.parse-release-config.results.release-component)"
       matrix:
         params:
           - name: manifest
@@ -141,7 +147,7 @@ spec:
         resolver: git
         params:
           - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
+            value: https://github.com/JasonPowr/konflux-staging-test.git
           - name: revision
             value: main
           - name: pathInRepo
@@ -154,7 +160,7 @@ spec:
         - apply-component-release-plans
       params:
         - name: release
-          value: "$(tasks.parse-release-config.results.releaseComponent)"
+          value: "$(tasks.parse-release-config.results.release-component)"
       matrix:
         params:
           - name: manifest
@@ -163,7 +169,7 @@ spec:
         resolver: git
         params:
           - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
+            value: https://github.com/JasonPowr/konflux-staging-test.git
           - name: revision
             value: main
           - name: pathInRepo
@@ -176,7 +182,7 @@ spec:
         - apply-component-release
       params:
         - name: release
-          value: "$(tasks.parse-release-config.results.releaseComponent)"
+          value: "$(tasks.parse-release-config.results.release-component)"
       matrix:
         params:
           - name: manifest
@@ -185,7 +191,74 @@ spec:
         resolver: git
         params:
           - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
+            value: https://github.com/JasonPowr/konflux-staging-test.git
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/monitor-release.yaml
+      timeout: "1h"
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: apply-operator-release-plans
+      runAfter:
+        - monitor-component-release
+      params:
+        - name: release
+          value: "$(tasks.parse-release-config.results.release-operator)"
+      matrix:
+        params:
+          - name: manifest
+            value: "$(tasks.process-release-plans.results.operator-release-plans)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test.git
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/apply-manifest.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: apply-operator-release
+      runAfter:
+        - apply-operator-release-plans
+      params:
+        - name: release
+          value: "$(tasks.parse-release-config.results.release-operator)"
+      matrix:
+        params:
+          - name: manifest
+            value: "$(tasks.process-releases.results.operator-releases)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test.git
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: tasks/apply-manifest.yaml
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: monitor-operator-release
+      runAfter:
+        - apply-operator-release
+      params:
+        - name: release
+          value: "$(tasks.parse-release-config.results.release-operator)"
+      matrix:
+        params:
+          - name: manifest
+            value: "$(tasks.process-releases.results.operator-releases)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/JasonPowr/konflux-staging-test.git
           - name: revision
             value: main
           - name: pathInRepo
@@ -196,10 +269,10 @@ spec:
           workspace: workspace
     - name: apply-fbc-release-plans
       runAfter:
-        - monitor-component-release
+        - monitor-operator-release
       params:
         - name: release
-          value: "$(tasks.parse-release-config.results.releaseFBC)"
+          value: "$(tasks.parse-release-config.results.release-fbc)"
       matrix:
         params:
           - name: manifest
@@ -208,7 +281,7 @@ spec:
         resolver: git
         params:
           - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
+            value: https://github.com/JasonPowr/konflux-staging-test.git
           - name: revision
             value: main
           - name: pathInRepo
@@ -221,7 +294,7 @@ spec:
         - apply-fbc-release-plans
       params:
         - name: release
-          value: "$(tasks.parse-release-config.results.releaseFBC)"
+          value: "$(tasks.parse-release-config.results.release-fbc)"
       matrix:
         params:
           - name: manifest
@@ -230,7 +303,7 @@ spec:
         resolver: git
         params:
           - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
+            value: https://github.com/JasonPowr/konflux-staging-test.git
           - name: revision
             value: main
           - name: pathInRepo
@@ -243,7 +316,7 @@ spec:
         - apply-fbc-release
       params:
         - name: release
-          value: "$(tasks.parse-release-config.results.releaseFBC)"
+          value: "$(tasks.parse-release-config.results.release-fbc)"
       matrix:
         params:
           - name: manifest
@@ -252,7 +325,7 @@ spec:
         resolver: git
         params:
           - name: url
-            value: https://github.com/JasonPowr/konflux-staging-test
+            value: https://github.com/JasonPowr/konflux-staging-test.git
           - name: revision
             value: main
           - name: pathInRepo
@@ -262,6 +335,6 @@ spec:
         - name: output
           workspace: workspace
   workspaces:
-  - name: workspace
-  - name: git-auth
-    optional: true
+    - name: workspace
+    - name: git-auth
+      optional: true
